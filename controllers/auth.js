@@ -65,7 +65,11 @@ const getCurrent = async (req, res) => {
 
 const logout = async (req, res) => {
   const { _id } = req.user;
-  await User.findByIdAndUpdate(_id, { token: "" });
+  const result = await User.findByIdAndUpdate(_id, { token: "" });
+
+  if (!result) {
+    throw HttpError(404, "Not found");
+  }
 
   res.status(204).json({});
 };
