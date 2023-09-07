@@ -26,6 +26,9 @@ const userSchema = new Schema(
       type: String,
       default: "",
     },
+    avatarURL: {
+      type: String,
+    },
   },
   { versionKey: false, timestamps: true }
 );
@@ -43,6 +46,7 @@ const registerSchema = Joi.object({
   password: Joi.string().required().messages({
     "any.required": "missing required password field",
   }),
+  subscription: Joi.string().valid("starter", "pro", "business"),
 });
 
 const loginSchema = Joi.object({
@@ -55,9 +59,19 @@ const loginSchema = Joi.object({
   }),
 });
 
+const updateSubscriptionSchema = Joi.object({
+  subscription: Joi.string()
+    .valid("starter", "pro", "business")
+    .required()
+    .messages({
+      "any.required": "missing required subscription field",
+    }),
+});
+
 const schemas = {
   registerSchema,
   loginSchema,
+  updateSubscriptionSchema,
 };
 
 // exports
