@@ -29,6 +29,14 @@ const userSchema = new Schema(
     avatarURL: {
       type: String,
     },
+    verify: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      required: [true, "Verify token is required"],
+    },
   },
   { versionKey: false, timestamps: true }
 );
@@ -37,7 +45,6 @@ userSchema.post("save", handleMongooseError);
 
 const User = model("user", userSchema);
 
-// Joi validation (currently the same for registration and login)
 const registerSchema = Joi.object({
   email: Joi.string().pattern(emailRegexp).required().messages({
     "string.pattern.base": "Please enter a valid email! e.g. mail@mail.com",
@@ -68,10 +75,17 @@ const updateSubscriptionSchema = Joi.object({
     }),
 });
 
+const resendVerificationEmailSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "any.required": "missing required email field",
+  }),
+});
+
 const schemas = {
   registerSchema,
   loginSchema,
   updateSubscriptionSchema,
+  resendVerificationEmailSchema,
 };
 
 // exports

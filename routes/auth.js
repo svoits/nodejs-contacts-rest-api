@@ -31,4 +31,12 @@ router.patch(
   controller.updateAvatar
 );
 
+router.get("/verify/:verificationToken", controller.verification);
+
+router.post(
+  "/verify",
+  validateBody(schemas.resendVerificationEmailSchema),
+  controller.resendVerification
+);
+
 module.exports = router;

@@ -6,9 +6,10 @@ const jwt = require("jsonwebtoken");
 const gravatar = require("gravatar");
 const Jimp = require("jimp");
 const { User } = require("../models/user");
-const { HttpError, ctrlWrapper } = require("../helpers");
+const { HttpError, ctrlWrapper, sendEmail } = require("../helpers");
+const { nanoid } = require("nanoid");
 
-const { SECRET_KEY } = process.env;
+const { SECRET_KEY, BASE_URL } = process.env;
 const avatarsDir = path.join(__dirname, "../", "public", "avatars");
 
 const register = async (req, res) => {
@@ -21,12 +22,23 @@ const register = async (req, res) => {
 
   const hashPassword = await bcrypt.hash(password, 10);
   const avatarURL = gravatar.url(email);
+  const verificationToken = nanoid();
 
   const newUser = await User.create({
     ...req.body,
     password: hashPassword,
     avatarURL,
+    verificationToken,
   });
+
+  const verificationEmail = {
+    to: ["95.ssh.ssh@gmail.com"],
+    // to: [email], // only verified emails can be as a recipient
+    subject: "Verification email",
+    html: `<a target="_blank" href="${BASE_URL}/users/verify/${verificationToken}">Click to verify email</a>`,
+  };
+
+  await sendEmail(verificationEmail);
 
   res.status(201).json({
     user: {
@@ -39,9 +51,18 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
+
   if (!user) {
     throw HttpError(401, "Email or password is wrong");
   }
+
+  if (!user.verify) {
+    throw HttpError(
+      401,
+      "You haven't verified your account yet. Please verify you account via email!"
+    );
+  }
+
   const passwordCompare = await bcrypt.compare(password, user.password);
   if (!passwordCompare) {
     throw HttpError(401, "Email or password is wrong");
@@ -122,6 +143,45 @@ const updateSubscription = async (req, res) => {
   });
 };
 
+const verification = async (req, res) => {
+  const { verificationToken } = req.params;
+  const user = await User.findOneAndUpdate(
+    { verificationToken },
+    { verificationToken: null, verify: true }
+  );
+
+  if (!user) {
+    throw HttpError(404, "Not Found");
+  }
+
+  res.json({
+    message: "Verification successful",
+  });
+};
+
+const resendVerification = async (req, res) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (user.verify) {
+    throw HttpError(400, "Verification has already been passed");
+  }
+
+  const verificationEmail = {
+    to: ["95.ssh.ssh@gmail.com"],
+    // to: [email], // only verified emails can be as a recipient
+    subject: "Verification email",
+    html: `<a target="_blank" href="${BASE_URL}/users/verify/${user.verificationToken}">Click to verify email</a>`,
+  };
+
+  await sendEmail(verificationEmail);
+
+  res.json({
+    message: "Verification email sent",
+  });
+};
+
 module.exports = {
   register: ctrlWrapper(register),
   login: ctrlWrapper(login),
@@ -129,4 +189,6 @@ module.exports = {
   logout: ctrlWrapper(logout),
   updateAvatar: ctrlWrapper(updateAvatar),
   updateSubscription: ctrlWrapper(updateSubscription),
+  verification: ctrlWrapper(verification),
+  resendVerification: ctrlWrapper(resendVerification),
 };
